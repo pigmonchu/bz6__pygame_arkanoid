@@ -1,4 +1,5 @@
 import pygame as pg
+from pygame.locals import *
 from Arkanoid import GAME_DIMENSIONS, FPS
 
 import random
@@ -6,6 +7,25 @@ import sys
 
 
 pg.init()
+
+
+class Raqueta:
+    def __init__(self, x, y, vx):
+        self.x = x
+        self.y = y
+        self.vx = vx
+
+        self.imagen = pg.image.load("resources/images/regular_racket.png")
+
+
+    def actualizar(self):
+        self.x += self.vx
+        if self.x + 128 >= GAME_DIMENSIONS[0]:
+            self.x = GAME_DIMENSIONS[0] - 128
+        if self.x <= 0:
+            self.x = 0
+
+
 
 class Pelota:
     imagenes_files = ['brown_ball.png', 'blue_ball.png', 'red_ball.png', 'green_ball.png']
@@ -80,7 +100,6 @@ class Pelota:
         
     def explosion(self, dt):
         if self.ix_explosion >= len(self.imagenes_explosion):
-            #terminar programa
             self.ix_explosion = 0
 
         self.imagen = self.imagenes_explosion[self.ix_explosion]
@@ -90,17 +109,18 @@ class Pelota:
         if self.ticks_acumulados >= self.ticks_por_frame_de_animacion:
             self.ix_explosion += 1
             self.ticks_acumulados = 0
+        
+        return False
 
 
     def actualizar(self, dt):
         self.actualizar_posicion()
 
         if self.muriendo:
-            self.explosion(dt)
+            return self.explosion(dt)
         else:
             self.actualizar_disfraz()
         
-
         
 
 
@@ -109,7 +129,10 @@ class Game:
 
         self.pantalla = pg.display.set_mode(GAME_DIMENSIONS)
         pg.display.set_caption("Futuro Arkanoid")
-        self.pelota = Pelota(400, 300, 10, 10)
+        
+        self.pelota = Pelota(400, 300, 10, 10, )
+        self.raqueta = Raqueta(336, 550, 0)
+        
         self.clock = pg.time.Clock()
 
 
@@ -118,15 +141,46 @@ class Game:
         
         while not game_over:
             dt = self.clock.tick(FPS)
+            '''
+            Gestion de eventos
+            '''
             events = pg.event.get()
             for event in events:
                 if event.type == pg.QUIT:
                     pg.quit()
                     sys.exit()
+                '''
+                if event.type == pg.KEYDOWN:
+                    if event.key == pg.K_RIGHT:
+                        self.raqueta.x += 10
+                        if self.raqueta.x + 128 >= GAME_DIMENSIONS[0]:
+                            self.raqueta.x = GAME_DIMENSIONS[0] - 128
 
-            self.pelota.actualizar(dt)
+                    if event.key == pg.K_LEFT:
+                        self.raqueta.x -= 10
+                        if self.raqueta.x <= 0:
+                            self.raqueta.x = 0
+                '''
+            teclas_pulsadas = pg.key.get_pressed()
+            if teclas_pulsadas[K_RIGHT]:
+                self.raqueta.vx = 10
+            elif teclas_pulsadas[K_LEFT]:
+                self.raqueta.vx = -10
+            else:
+                self.raqueta.vx = 0
+
+
+            '''
+            Actualización de elementos del juego
+            '''
+            game_over = self.pelota.actualizar(dt)
+            self.raqueta.actualizar()
 
             self.pantalla.fill((0,0,255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
+            self.pantalla.blit(self.raqueta.imagen, (self.raqueta.x, self.raqueta.y))
 
+            '''
+            Refrescar pantalla
+            '''
             pg.display.flip()
