@@ -1,6 +1,6 @@
 import pygame as pg
 from pygame.locals import *
-from Arkanoid import GAME_DIMENSIONS, FPS
+from Arkanoid import DIMENSIONES_JUEGO, FPS
 
 import random
 import sys
@@ -20,10 +20,24 @@ class Raqueta:
 
     def actualizar(self):
         self.x += self.vx
-        if self.x + 128 >= GAME_DIMENSIONS[0]:
-            self.x = GAME_DIMENSIONS[0] - 128
+        if self.x + 128 >= DIMENSIONES_JUEGO[0]:
+            self.x = DIMENSIONES_JUEGO[0] - 128
         if self.x <= 0:
             self.x = 0
+
+    @property
+    def rect(self):
+        return self.imagen.get_rect(topleft=(self.x, self.y))
+
+
+    def manejar_eventos(self):
+        teclas_pulsadas = pg.key.get_pressed()
+        if teclas_pulsadas[K_RIGHT]:
+            self.vx = 10
+        elif teclas_pulsadas[K_LEFT]:
+            self.vx = -10
+        else:
+            self.vx = 0
 
 
 
@@ -71,13 +85,13 @@ class Pelota:
         '''
         Gestionar posición de pelota
         '''
-        if self.rect.left <= 0 or self.rect.right >= GAME_DIMENSIONS[0]:
+        if self.rect.left <= 0 or self.rect.right >= DIMENSIONES_JUEGO[0]:
             self.vx = -self.vx
 
         if self.rect.top <= 0:
             self.vy = -self.vy
 
-        if self.rect.bottom >= GAME_DIMENSIONS[1]:
+        if self.rect.bottom >= DIMENSIONES_JUEGO[1]:
             self.muriendo = True
             self.ciclos_tras_refresco = 0
             return
@@ -100,7 +114,8 @@ class Pelota:
         
     def explosion(self, dt):
         if self.ix_explosion >= len(self.imagenes_explosion):
-            self.ix_explosion = 0
+            return True
+
 
         self.imagen = self.imagenes_explosion[self.ix_explosion]
 
@@ -112,6 +127,12 @@ class Pelota:
         
         return False
 
+    def comprobar_colision(self, algo):
+        if (self.rect.left >= algo.rect.left and self.rect.left <= algo.rect.right or \
+            self.rect.right >= algo.rect.left and self.rect.right <= algo.rect.right) and \
+           self.rect.bottom >= algo.rect.top:
+
+           self.vy *= -1
 
     def actualizar(self, dt):
         self.actualizar_posicion()
@@ -127,10 +148,10 @@ class Pelota:
 class Game:
     def __init__(self):
 
-        self.pantalla = pg.display.set_mode(GAME_DIMENSIONS)
+        self.pantalla = pg.display.set_mode(DIMENSIONES_JUEGO)
         pg.display.set_caption("Futuro Arkanoid")
         
-        self.pelota = Pelota(400, 300, 10, 10, )
+        self.pelota = Pelota(400, 300, 5, 5)
         self.raqueta = Raqueta(336, 550, 0)
         
         self.clock = pg.time.Clock()
@@ -149,32 +170,15 @@ class Game:
                 if event.type == pg.QUIT:
                     pg.quit()
                     sys.exit()
-                '''
-                if event.type == pg.KEYDOWN:
-                    if event.key == pg.K_RIGHT:
-                        self.raqueta.x += 10
-                        if self.raqueta.x + 128 >= GAME_DIMENSIONS[0]:
-                            self.raqueta.x = GAME_DIMENSIONS[0] - 128
 
-                    if event.key == pg.K_LEFT:
-                        self.raqueta.x -= 10
-                        if self.raqueta.x <= 0:
-                            self.raqueta.x = 0
-                '''
-            teclas_pulsadas = pg.key.get_pressed()
-            if teclas_pulsadas[K_RIGHT]:
-                self.raqueta.vx = 10
-            elif teclas_pulsadas[K_LEFT]:
-                self.raqueta.vx = -10
-            else:
-                self.raqueta.vx = 0
-
+            self.raqueta.manejar_eventos()
 
             '''
             Actualización de elementos del juego
             '''
             game_over = self.pelota.actualizar(dt)
             self.raqueta.actualizar()
+            self.pelota.comprobar_colision(self.raqueta)
 
             self.pantalla.fill((0,0,255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
