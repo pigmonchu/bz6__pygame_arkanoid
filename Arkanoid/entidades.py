@@ -10,6 +10,7 @@ pg.init()
 class Pelota:
     imagenes_files = ['brown_ball.png', 'blue_ball.png', 'red_ball.png', 'green_ball.png']
     num_imgs_explosion = 8
+    retardo_animaciones = 5
 
     def __init__(self, x, y, vx, vy):
         self.x = x
@@ -20,6 +21,9 @@ class Pelota:
         self.imagenes_explosion = self.cargaExplosion()
         self.imagen_act = 0
         self.ix_explosion = 0
+        self.ciclos_tras_refresco = 0
+        self.ticks_acumulados = 0
+        self.ticks_por_frame_de_animacion = 1000//FPS * self.retardo_animaciones
         self.muriendo = False
         
         self.imagen = self.imagenes[self.imagen_act]
@@ -55,6 +59,7 @@ class Pelota:
 
         if self.rect.bottom >= GAME_DIMENSIONS[1]:
             self.muriendo = True
+            self.ciclos_tras_refresco = 0
             return
 
         self.x += self.vx
@@ -64,28 +69,37 @@ class Pelota:
         '''
         Gestionar imagen activa (disfraz) de pelota
         '''
-        self.imagen_act += 1
-        if self.imagen_act >= len(self.imagenes):
-            self.imagen_act = 0
-        self.imagen = self.imagenes[self.imagen_act]
+        self.ciclos_tras_refresco += 1
 
-
-    def actualizar(self):
-        self.actualizar_posicion()
-
-        if self.muriendo:
-            self.explosion()
-        else:
-            self.actualizar_disfraz()
+        if self.ciclos_tras_refresco % self.retardo_animaciones == 0:
+            self.imagen_act += 1
+            if self.imagen_act >= len(self.imagenes):
+                self.imagen_act = 0
         
-    def explosion(self):
+        self.imagen = self.imagenes[self.imagen_act]
+        
+    def explosion(self, dt):
         if self.ix_explosion >= len(self.imagenes_explosion):
             #terminar programa
             self.ix_explosion = 0
 
         self.imagen = self.imagenes_explosion[self.ix_explosion]
 
-        self.ix_explosion += 1
+    
+        self.ticks_acumulados += dt
+        if self.ticks_acumulados >= self.ticks_por_frame_de_animacion:
+            self.ix_explosion += 1
+            self.ticks_acumulados = 0
+
+
+    def actualizar(self, dt):
+        self.actualizar_posicion()
+
+        if self.muriendo:
+            self.explosion(dt)
+        else:
+            self.actualizar_disfraz()
+        
 
         
 
@@ -103,14 +117,14 @@ class Game:
         game_over = False
         
         while not game_over:
-            print(self.clock.tick(FPS))
+            dt = self.clock.tick(FPS)
             events = pg.event.get()
             for event in events:
                 if event.type == pg.QUIT:
                     pg.quit()
                     sys.exit()
 
-            self.pelota.actualizar()
+            self.pelota.actualizar(dt)
 
             self.pantalla.fill((0,0,255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
