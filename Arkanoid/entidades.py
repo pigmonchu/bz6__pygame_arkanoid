@@ -8,7 +8,6 @@ import sys
 
 pg.init()
 
-
 class Ladrillo:
     w = 64
     h = 32
@@ -150,11 +149,9 @@ class Pelota:
         return False
 
     def comprobar_colision(self, algo):
-        if (self.rect.left >= algo.rect.left and self.rect.left <= algo.rect.right or \
-            self.rect.right >= algo.rect.left and self.rect.right <= algo.rect.right) and \
-           self.rect.bottom >= algo.rect.top:
-
-           self.vy *= -1
+        if self.rect.colliderect(algo.rect):
+            self.vy *= -1
+            return True
 
     def actualizar(self, dt):
         self.actualizar_posicion()
@@ -209,6 +206,9 @@ class Game:
             game_over = self.pelota.actualizar(dt)
             self.raqueta.actualizar()
             self.pelota.comprobar_colision(self.raqueta)
+            for ladrillo in self.ladrillos:
+                if self.pelota.comprobar_colision(ladrillo) == True:
+                    self.ladrillos.remove(ladrillo)
 
             self.pantalla.fill((0,0,255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
