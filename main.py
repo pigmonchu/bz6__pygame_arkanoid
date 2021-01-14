@@ -1,5 +1,5 @@
 from Arkanoid.entidades import *
 
 if __name__ == '__main__':
-    game = Game1()
+    game = Game()
     game.bucle_principal()
