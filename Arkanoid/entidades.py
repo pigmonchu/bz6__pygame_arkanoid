@@ -9,6 +9,28 @@ import sys
 pg.init()
 
 
+class Ladrillo:
+    w = 64
+    h = 32
+    def __init__(self, x, y):
+        self.x = x
+        self.y = y
+
+        self.imagen = pg.Surface((self.w, self.h))
+        self.imagen.fill((255, 255, 255))
+        pg.draw.rect(self.imagen, (255, 0 , 0), Rect((2, 2), (self.w-4, self.h-4)))
+
+    @property
+    def rect(self):
+        return self.imagen.get_rect(topleft=(self.x, self.y))
+
+    def actualizar(self):
+        pass
+
+    def comprobar_colision(self, algo):
+        pass
+
+
 class Raqueta:
     def __init__(self, x, y, vx):
         self.x = x
@@ -153,6 +175,14 @@ class Game:
         
         self.pelota = Pelota(400, 300, 5, 5)
         self.raqueta = Raqueta(336, 550, 0)
+
+        self.ladrillos = []
+        xo = 16
+        yo = 16
+        for c in range(12):
+            for f in range(5):
+                l = Ladrillo(xo + c * Ladrillo.w, yo + f * Ladrillo.h)
+                self.ladrillos.append(l)
         
         self.clock = pg.time.Clock()
 
@@ -183,6 +213,10 @@ class Game:
             self.pantalla.fill((0,0,255))
             self.pantalla.blit(self.pelota.imagen, (self.pelota.x, self.pelota.y))
             self.pantalla.blit(self.raqueta.imagen, (self.raqueta.x, self.raqueta.y))
+
+            for ladrillo in self.ladrillos:
+                self.pantalla.blit(ladrillo.imagen, (ladrillo.x, ladrillo.y))
+
 
             '''
             Refrescar pantalla
