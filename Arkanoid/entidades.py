@@ -61,8 +61,8 @@ class Pelota(pg.sprite.Sprite):
         self.ciclos_tras_refresco = 0
         self.ticks_acumulados = 0
         self.ticks_por_frame_de_animacion = 1000//FPS * self.retardo_animaciones
-        self.muriendo = False
-        
+        self.status = "N"
+
         self.image = self.imagenes[self.imagen_act]
         self.rect = self.image.get_rect(x=x, y=y)
 
@@ -78,7 +78,7 @@ class Pelota(pg.sprite.Sprite):
         return lista_imagenes
 
     def actualizar_posicion(self):
-        if self.muriendo:
+        if self.status == 'A':
             return
         '''
         Gestionar posición de pelota
@@ -90,7 +90,7 @@ class Pelota(pg.sprite.Sprite):
             self.vy = -self.vy
 
         if self.rect.bottom >= DIMENSIONES_JUEGO[1]:
-            self.muriendo = True
+            self.status = 'A'
             self.ciclos_tras_refresco = 0
             return
 
@@ -112,7 +112,7 @@ class Pelota(pg.sprite.Sprite):
         
     def explosion(self, dt):
         if self.ix_explosion >= len(self.imagenes_explosion):
-            return True
+            self.status = 'Ended'
 
 
         self.image = self.imagenes_explosion[self.ix_explosion]
@@ -133,7 +133,7 @@ class Pelota(pg.sprite.Sprite):
     def update(self, dt):
         self.actualizar_posicion()
 
-        if self.muriendo:
+        if self.status == 'A':
             return self.explosion(dt)
         else:
             self.actualizar_disfraz()
@@ -191,10 +191,14 @@ class Game:
             self.todos.update(dt)
 
             self.pelota.comprobar_colision(self.raqueta)
+            if self.pelota.status == 'Ended':
+                game_over = True
+
 
             for ladrillo in self.ladrillos:
                 if self.pelota.comprobar_colision(ladrillo):
                     self.ladrillos.remove(ladrillo)
+                    self.todos.remove(ladrillo)
                     ladrillos_rotos += 1
                 
 
