@@ -8,6 +8,75 @@ import sys
 
 pg.init()
 
+def colision(yo, otro):
+    VrelX = otro.vx - yo.vx
+    VrelY = otro.vy - yo.vy
+
+    minTop = min(yo.rect.top, otro.rect.top)
+    maxBottom = minTop + yo.rect.h + otro.rect.h
+    realBottom = max(yo.rect.bottom, otro.rect.bottom)
+
+    minLeft = min(yo.rect.left, otro.rect.left)
+    maxRight = minLeft + yo.rect.w + otro.rect.w
+    realRight = max(yo.rect.right, otro.rect.right)
+
+    hay_colision = realBottom <= maxBottom and realRight <= maxRight
+
+    if not hay_colision: 
+        return False
+
+    penetracionX = otro.rect.centerx - yo.rect.centerx - (yo.rect.w/2 + otro.rect.w/2)
+    penetracionY = otro.rect.centery - yo.rect.centery - (yo.rect.h/2 + otro.rect.h/2)
+
+    if abs(penetracionX) > abs(VrelX):
+        yo.vy *= -1
+        otro.vy *= -1
+
+    if abs(penetracionY) > abs(VrelY):
+        yo.vx *= -1
+        otro.vx *= -1
+
+    return True
+
+class LadrilloMovil:
+    def __init__(self, x, y, vx, vy):
+        self.x = x
+        self.y = y
+        self.vx = vx
+        self.vy = vy
+        self.__alive = True
+
+        self.imagen = pg.image.load(f"resources/images/{random.choice(['red', 'purple', 'green', 'cyan'])}_brick.png")
+
+    @property
+    def rect(self):
+        return self.imagen.get_rect(topleft=(self.x, self.y))
+
+    def actualizar(self):
+        if self.rect.left <= 0 or self.rect.right > DIMENSIONES_JUEGO[0]:
+            self.vx *= -1
+        if self.rect.top <= 0 or self.rect.bottom > DIMENSIONES_JUEGO[1]:
+            self.vy *= -1
+
+        self.x += self.vx
+        self.y += self.vy
+
+    def comprobar_colision(self, algo, debe_morir=False):
+        hay_colision = colision(self, algo)        
+        
+        if debe_morir:
+            algo.died = True
+
+
+    @property
+    def died(self):
+        return not self.__alive
+
+    @died.setter
+    def died(self, value):
+        self.__alive = not value
+        if not self.__alive:
+            del self
 
 class Ladrillo:
     w = 64
@@ -15,6 +84,7 @@ class Ladrillo:
     def __init__(self, x, y):
         self.x = x
         self.y = y
+        self.__alive = True
 
         self.imagen = pg.Surface((self.w, self.h))
         self.imagen.fill((255, 255, 255))
@@ -27,15 +97,23 @@ class Ladrillo:
     def actualizar(self):
         pass
 
-    def comprobar_colision(self, algo):
-        pass
+    @property
+    def died(self):
+        return not self.__alive
+
+    @died.setter
+    def died(self, value):
+        self.__alive = not value
+        if not self.__alive:
+            del self
 
 
 class Raqueta:
-    def __init__(self, x, y, vx):
+    def __init__(self, x, y, vx, vy=0):
         self.x = x
         self.y = y
         self.vx = vx
+        self.vy = 0
 
         self.imagen = pg.image.load("resources/images/regular_racket.png")
 
@@ -149,12 +227,11 @@ class Pelota:
         
         return False
 
-    def comprobar_colision(self, algo):
-        if (self.rect.left >= algo.rect.left and self.rect.left <= algo.rect.right or \
-            self.rect.right >= algo.rect.left and self.rect.right <= algo.rect.right) and \
-           self.rect.bottom >= algo.rect.top:
-
-           self.vy *= -1
+    def comprobar_colision(self, algo, debe_morir=False):
+        hay_colision = colision(self, algo)        
+        
+        if debe_morir:
+            algo.died = True
 
     def actualizar(self, dt):
         self.actualizar_posicion()
@@ -166,6 +243,49 @@ class Pelota:
         
         
 
+class Game1:
+    def __init__(self):
+
+        self.pantalla = pg.display.set_mode(DIMENSIONES_JUEGO)
+        pg.display.set_caption("Colisiones")
+    
+
+        self.l1 = LadrilloMovil(random.randint(0,750), random.randint(0,550), random.randint(2, 6)*random.choice([-1, 1]), random.randint(2, 6)*random.choice([-1, 1]))
+        self.l2 = LadrilloMovil(random.randint(0,750), random.randint(0,550), random.randint(2, 6)*random.choice([-1, 1]), random.randint(2, 6)*random.choice([-1, 1]))
+        self.clock = pg.time.Clock()
+
+
+    def bucle_principal(self):
+        game_over = False
+        
+        while not game_over:
+            dt = self.clock.tick(FPS)
+            '''
+            Gestion de eventos
+            '''
+            events = pg.event.get()
+            for event in events:
+                if event.type == pg.QUIT:
+                    pg.quit()
+                    sys.exit()
+
+            '''
+            Actualización de elementos del juego
+            '''
+            self.l1.actualizar()
+            self.l2.actualizar()
+            self.l1.comprobar_colision(self.l2, True)
+
+            self.pantalla.fill((0,0,255))
+            self.pantalla.blit(self.l1.imagen, (self.l1.x, self.l1.y))
+            self.pantalla.blit(self.l2.imagen, (self.l2.x, self.l2.y))
+
+
+            '''
+            Refrescar pantalla
+            '''
+            pg.display.flip()
+
 
 class Game:
     def __init__(self):
@@ -176,6 +296,8 @@ class Game:
         self.pelota = Pelota(400, 300, 5, 5)
         self.raqueta = Raqueta(336, 550, 0)
 
+        self.El_ladrillo = Ladrillo(400, 300)
+        self.El_ladrillo = None
         self.ladrillos = []
         xo = 16
         yo = 16
