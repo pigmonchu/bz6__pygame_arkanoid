@@ -4,9 +4,15 @@ from Arkanoid import DIMENSIONES_JUEGO, FPS, DIMENSIONES_LADRILLO
 
 import random
 import sys
+import enum
 
 
 pg.init()
+
+class PelotaStatus(enum.Enum):
+    Viva = 0
+    Explotando = 1
+    Muerta = 2
 
 class Ladrillo(pg.sprite.Sprite):
     def __init__(self, x, y):
@@ -21,7 +27,7 @@ class Raqueta(pg.sprite.Sprite):
     def __init__(self, x, y, vx):
         pg.sprite.Sprite.__init__(self)
         self.vx = vx
-
+        self.vidas = 3 
         self.image = pg.image.load("resources/images/regular_racket.png")
         self.rect = self.image.get_rect(x=x, y=y)
 
@@ -49,11 +55,12 @@ class Pelota(pg.sprite.Sprite):
     num_imgs_explosion = 8
     retardo_animaciones = 5
 
-    def __init__(self, x, y, vx, vy):
+    def __init__(self, x, y):
         pg.sprite.Sprite.__init__(self)
 
-        self.vx = vx
-        self.vy = vy
+        self.xo = x
+        self.yo = y
+        self.velocidad_inicial()
         self.imagenes = self.cargaImagenes()
         self.imagenes_explosion = self.cargaExplosion()
         self.imagen_act = 0
@@ -61,10 +68,22 @@ class Pelota(pg.sprite.Sprite):
         self.ciclos_tras_refresco = 0
         self.ticks_acumulados = 0
         self.ticks_por_frame_de_animacion = 1000//FPS * self.retardo_animaciones
-        self.status = "N"
+        self.status = PelotaStatus.Viva
 
         self.image = self.imagenes[self.imagen_act]
         self.rect = self.image.get_rect(x=x, y=y)
+
+    def reiniciar(self):
+        self.ix_explosion = 0
+        self.ticks_acumulados = 0
+        self.status = PelotaStatus.Viva
+        self.rect.x = self.xo
+        self.rect.y = self.yo
+        self.velocidad_inicial()
+
+    def velocidad_inicial(self):
+        self.vx = random.randint(2, 5)* random.choice([1, -1])
+        self.vy = random.randint(2, 5)* random.choice([1, -1])
 
     def cargaExplosion(self):
         return [pg.image.load(f"resources/images/explosion0{i}.png") for i in range(self.num_imgs_explosion)]
@@ -78,7 +97,7 @@ class Pelota(pg.sprite.Sprite):
         return lista_imagenes
 
     def actualizar_posicion(self):
-        if self.status == 'A':
+        if self.status == PelotaStatus.Explotando:
             return
         '''
         Gestionar posición de pelota
@@ -90,7 +109,7 @@ class Pelota(pg.sprite.Sprite):
             self.vy = -self.vy
 
         if self.rect.bottom >= DIMENSIONES_JUEGO[1]:
-            self.status = 'A'
+            self.status = PelotaStatus.Explotando
             self.ciclos_tras_refresco = 0
             return
 
@@ -112,7 +131,8 @@ class Pelota(pg.sprite.Sprite):
         
     def explosion(self, dt):
         if self.ix_explosion >= len(self.imagenes_explosion):
-            self.status = 'Ended'
+            self.status = PelotaStatus.Muerta
+            return
 
 
         self.image = self.imagenes_explosion[self.ix_explosion]
@@ -122,8 +142,6 @@ class Pelota(pg.sprite.Sprite):
         if self.ticks_acumulados >= self.ticks_por_frame_de_animacion:
             self.ix_explosion += 1
             self.ticks_acumulados = 0
-        
-        return False
 
     def comprobar_colision(self, algo):
         if self.rect.colliderect(algo.rect):
@@ -133,7 +151,7 @@ class Pelota(pg.sprite.Sprite):
     def update(self, dt):
         self.actualizar_posicion()
 
-        if self.status == 'A':
+        if self.status == PelotaStatus.Explotando:
             return self.explosion(dt)
         else:
             self.actualizar_disfraz()
@@ -147,20 +165,24 @@ class Game:
         self.pantalla = pg.display.set_mode(DIMENSIONES_JUEGO)
         pg.display.set_caption("Futuro Arkanoid")
         
-        self.pelota = Pelota(400, 300, random.randint(2, 5)* random.choice([1, -1]), random.randint(2, 5)* random.choice([1, -1]))
+        self.pelota = Pelota(400, 300)
         self.raqueta = Raqueta(336, 550, 0)
-
+        self.cuenta_vidas = pg.font.Font("resources/fonts/HachiMaruPop-Regular.ttf", 120)
+        
+        
         self.jugadores = pg.sprite.Group(self.raqueta)
         self.ladrillos = self.crea_ladrillos()
         self.pelotas = pg.sprite.Group(self.pelota)
         self.todos = pg.sprite.Group(self.ladrillos, self.jugadores, self.pelotas)
+
+
 
         self.clock = pg.time.Clock()
 
     def crea_ladrillos(self):
         ladrillos = pg.sprite.Group()
         xo = 16
-        yo = 16
+        yo = 36
         for c in range(12):
             for f in range(5):
                 l = Ladrillo(xo + c * DIMENSIONES_LADRILLO[0], yo + f * DIMENSIONES_LADRILLO[1])
@@ -191,9 +213,12 @@ class Game:
             self.todos.update(dt)
 
             self.pelota.comprobar_colision(self.raqueta)
-            if self.pelota.status == 'Ended':
-                game_over = True
-
+            if self.pelota.status == PelotaStatus.Muerta:
+                self.raqueta.vidas -= 1
+                if self.raqueta.vidas == 0:
+                    game_over = True
+                else:
+                    self.pelota.reiniciar()
 
             for ladrillo in self.ladrillos:
                 if self.pelota.comprobar_colision(ladrillo):
@@ -202,10 +227,17 @@ class Game:
                     ladrillos_rotos += 1
                 
 
+            Svidas = self.cuenta_vidas.render(str(self.raqueta.vidas), True, (255,255,255))
+            Rvidas = Svidas.get_rect(bottomright=(795,595))
 
+            Sladrillos = self.cuenta_vidas.render("Una palabra", True, (0, 255, 255))
+            Rladrillos = Sladrillos.get_rect(bottomleft=(5, 595))
 
             self.pantalla.fill((0,0,255))
             self.todos.draw(self.pantalla)
+
+            self.pantalla.blit(Svidas, (Rvidas.x, Rvidas.y))
+            self.pantalla.blit(Sladrillos, (Rladrillos.x, Rladrillos.y))
 
 
             '''
